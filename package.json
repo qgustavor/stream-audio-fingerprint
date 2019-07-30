@@ -14,8 +14,7 @@
 	"author": "Alexandre Storelli <a_npm@storelli.fr>",
 	"license": "MPL-2.0",
 	"dependencies": {
-		"dsp.js": "git+https://git@github.com/corbanbrook/dsp.js.git",
-		"node-png": "^0.4.3"
+		"dsp.js": "git+https://git@github.com/corbanbrook/dsp.js.git"
 	},
 	"bugs": {
 		"url": "https://github.com/dest4/stream-audio-fingerprint/issues"
