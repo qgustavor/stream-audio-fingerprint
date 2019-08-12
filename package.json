@@ -2,7 +2,8 @@
 	"name": "stream-audio-fingerprint",
 	"version": "1.0.4",
 	"description": "Audio landmark fingerprinting as a Node Stream module",
-	"main": "codegen_landmark.js",
+	"main": "./codegen_landmark.js",
+	"types": "./typings/index.d.ts",
 	"scripts": {
 		"test": "echo \"Error: no test specified\" && exit 1"
 	},
@@ -15,6 +16,9 @@
 	"license": "MPL-2.0",
 	"dependencies": {
 		"dsp.js": "git+https://git@github.com/corbanbrook/dsp.js.git"
+	},
+	"devDependencies": {
+		"@types/node": "^7.0.12"
 	},
 	"bugs": {
 		"url": "https://github.com/dest4/stream-audio-fingerprint/issues"
