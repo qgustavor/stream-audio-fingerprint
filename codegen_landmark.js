@@ -20,9 +20,8 @@
 
 'use strict';
 
-const log = console.log;
-const dsp = require('dsp.js');
-const { Transform } = require('stream');
+import {Transform, Buffer} from 'node';
+import {DSP as dsp} from 'dsp.js';
 
 const SAMPLING_RATE = 22050;
 // sampling rate in Hz. If you change this, you must adapt WINDOW_DT and PRUNING_DT below to match your needs
@@ -82,20 +81,22 @@ for (let i=0; i<NFFT/2; i++) {
 }
 
 const VERBOSE = false;
-const DO_PLOT = false; // limit the amount of audio processing to ~12s, generate plots and stop the routine.
 
-if (DO_PLOT) {
-	var fs = require('fs');
-	var png = require('node-png').PNG;
-}
-
-class Codegen extends Transform {
+export class Codegen extends Transform {
 
 	constructor(options) {
-		if (!options) options = {};
-		options.readableObjectMode = true;
-		options.highWaterMark = 10;
+		if (!options) {
+			options = {};
+		}
+
+		options = {
+			readableObjectMode: true,
+			highWaterMark: 10,
+			...options, 
+		}
+
 		super(options);
+
 		this.buffer = new Buffer(0);
 		this.bufferDelta = 0;
 
@@ -106,12 +107,6 @@ class Codegen extends Transform {
 			this.threshold[i] = -3;
 		}
 
-		if (DO_PLOT) {
-			this.fftData = [];
-			this.thrData = [];
-			this.peakData = [];
-		}
-
 		// copy constants to be able to reference them in parent modules
 		this.DT = DT;
 		this.SAMPLING_RATE = SAMPLING_RATE;
@@ -120,7 +115,7 @@ class Codegen extends Transform {
 
 	_write(chunk, enc, next) {
 
-		if (VERBOSE) log("t=" + Math.round(this.stepIndex/STEP) + " received " + chunk.length + " bytes");
+		if (VERBOSE) console.log("t=" + Math.round(this.stepIndex/STEP) + " received " + chunk.length + " bytes");
 
 		let tcodes = [];
 		let hcodes = [];
@@ -152,8 +147,6 @@ class Codegen extends Transform {
 				// the lower part of the spectrum is damped, the higher part is boosted, leading to a better peaks detection.
 				FFT.spectrum[i] = Math.abs(FFT.spectrum[i])*Math.sqrt(i+16);
 			}
-
-			if (DO_PLOT) this.fftData.push(FFT.spectrum.slice());
 
 			// positive values of the difference between log spectrum and threshold
 			let diff = new Array(NFFT/2);
@@ -200,24 +193,6 @@ class Codegen extends Transform {
 				}
 			}
 
-			if (DO_PLOT) {
-				let tmp = new Array(NFFT/2);
-				for (let i=0; i<IF_MIN; i++) {
-					tmp[i] = 0;
-				}
-				for (let i=IF_MIN; i<IF_MAX; i++) {
-					tmp[i] = Math.exp(this.threshold[i]);
-				}
-				for (let i=IF_MAX; i<NFFT/2; i++) {
-					tmp[i] = 0;
-				}
-				this.thrData.push(tmp);
-			}
-
-			if (false && VERBOSE && iLocMax.length > 0) {
-				log("t=" + Math.round(this.stepIndex/STEP) + " f=" + iLocMax + " peak=" + vLocMax);
-			}
-
 			// array that stores local maxima for each time step
 			this.marks.push({"t": Math.round(this.stepIndex/STEP), "i":iLocMax, "v":vLocMax});
 
@@ -229,7 +204,6 @@ class Codegen extends Transform {
 				for (let j=0; j<this.marks[i].v.length; j++) {
 					//console.log("pruning " + this.marks[i].v[j] + " <? " + this.threshold[this.marks[i].i[j]] + " * " + Math.pow(this.mask_decay, lenMarks-1-i));
 					if (this.marks[i].i[j] != 0 && Math.log(this.marks[i].v[j]) < this.threshold[this.marks[i].i[j]] + MASK_DECAY_LOG * (nm-1-i)) {
-						if (false && VERBOSE) log("t=" + Math.round(this.stepIndex/STEP) + " pruning " + i + " t=" + this.marks[i].t + " locmax=" + j);
 						this.marks[i].v[j] = Number.NEGATIVE_INFINITY;
 						this.marks[i].i[j] = Number.NEGATIVE_INFINITY;
 					}
@@ -245,12 +219,10 @@ class Codegen extends Transform {
 				for (let i=0; i < m.i.length; i++) {
 					let nFingers = 0;
 
-					loopPastTime:
 					for (let j=t0; j>=Math.max(0,t0-WINDOW_DT); j--) {
 
 						let m2 = this.marks[j];
 
-						loopPastPeaks:
 						for (let k=0; k<m2.i.length; k++) {
 							if (m2.i[k] != m.i[i] && Math.abs(m2.i[k] - m.i[i]) < WINDOW_DF) {
 								tcodes.push(m.t); //Math.round(this.stepIndex/STEP));
@@ -259,7 +231,6 @@ class Codegen extends Transform {
 								hcodes.push(m2.i[k] + NFFT/2 * (m.i[i] + NFFT/2 * (t0-j)));
 								nFingers += 1;
 								nFingersTotal += 1;
-								if (DO_PLOT) this.peakData.push([m.t, j, m.i[i], m2.i[k]]); // t1, t2, f1, f2
 								if (nFingers >= MPPP) continue loopCurrentPeaks;
 							}
 						}
@@ -267,11 +238,10 @@ class Codegen extends Transform {
 				}
 			}
 			if (nFingersTotal > 0 && VERBOSE) {
-				log("t=" + Math.round(this.stepIndex/STEP) + " generated " + nFingersTotal + " fingerprints");
+				console.log("t=" + Math.round(this.stepIndex/STEP) + " generated " + nFingersTotal + " fingerprints");
 			}
-			if (!DO_PLOT) {
-				this.marks.splice(0,t0+1-WINDOW_DT);
-			}
+			
+			this.marks.splice(0,t0+1-WINDOW_DT);
 
 			// decrease the threshold for the next iteration
 			for (let j=0; j<this.threshold.length; j++) {
@@ -287,15 +257,7 @@ class Codegen extends Transform {
 		}
 
 		if (VERBOSE) {
-			log("fp processed " + (this.practicalDecodedBytes - this.decodedBytesSinceCallback) + " while threshold is " + (0.99*this.thresholdBytes));
-		}
-
-		if (this.stepIndex/STEP > 500 && DO_PLOT) { // approx 12 s of audio data
-			this.plot()
-			DO_PLOT = false;
-			setTimeout(function() {
-				process.exit(0);
-			}, 3000);
+			console.log("fp processed " + (this.practicalDecodedBytes - this.decodedBytesSinceCallback) + " while threshold is " + (0.99*this.thresholdBytes));
 		}
 
 		if (tcodes.length > 0) {
@@ -305,131 +267,4 @@ class Codegen extends Transform {
 
 		next();
 	}
-
-	plot() { // plot section
-
-		if (false) { // raw signal plot
-			let buf = new Array(this.buffer.length / BPS);
-			for (let i=0; i<buf.length; i++) {
-				buf[i] = this.buffer.readInt16LE(i);
-			}
-			var img = new png({width:buf.length,height:64});
-			img.data = new Buffer(img.width * img.height * 4);
-			var norm = minmax(buf, 1);
-
-			for (var x = 0; x < img.width; x++) {
-				for (var y = 0; y < img.height; y++) {
-					colormap(0, img.data, (img.width * y + x) << 2, null);
-				}
-				var yPoint = Math.round(((buf[x]-norm[0]) / (norm[1]-norm[0])) * 64);
-				colormap(1, img.data, (img.width * yPoint + x) << 2, null);
-			}
-			img.pack().pipe(fs.createWriteStream('out-raw.png'));
-		}
-
-		// fft plot
-		console.log("fftData len=" + this.fftData.length);
-		var img = new png({width:this.fftData.length,height:this.fftData[0].length});
-		img.data = new Buffer(img.width * img.height * 4);
-		var norm = minmax(this.fftData, 2);
-		if (VERBOSE) {
-			log("fft min=" + norm[0] + " max=" + norm[1]);
-		}
-		for (let x = 0; x < img.width; x++) {
-			for (let y = 0; y < img.height; y++) {
-				colormap(Math.abs((this.fftData[x][y]-norm[0]) / (norm[1]-norm[0])), img.data, ((img.width * (img.height-1-y) + x) << 2),'r');
-			}
-		}
-		for (let i = 0; i < this.peakData.length; i++) {
-			drawLine(img,this.peakData[i][0],this.peakData[i][1],this.peakData[i][2],this.peakData[i][3]);
-		}
-
-		for (let x = 0; x < img.width; x++) {
-			for (let i = 0; i < this.marks[x].i.length; i++) {
-				if (this.marks[x].i[i] > Number.NEGATIVE_INFINITY) {
-					drawMarker(img, x, this.marks[x].i[i], 2);
-				}
-			}
-		}
-		img.pack().pipe(fs.createWriteStream('out-fft.png'));
-
-
-		// threshold plot
-		var img = new png({width:this.thrData.length,height:this.thrData[0].length});
-		img.data = new Buffer(img.width * img.height * 4);
-		var norm = minmax(this.thrData, 2);
-		if (VERBOSE) {
-			log("thr min=" + norm[0] + " max=" + norm[1]);
-		}
-		for (let x = 0; x < img.width; x++) {
-			for (let y = 0; y < img.height; y++) {
-				colormap(Math.abs((this.thrData[x][y]-norm[0]) / (norm[1]-norm[0])), img.data, ((img.width * (img.height-1-y) + x) << 2),'r');
-			}
-
-			for (let i = 0; i < this.marks[x].i.length; i++) {
-				if (this.marks[x].i[i] > Number.NEGATIVE_INFINITY) {
-					drawMarker(img, x, this.marks[x].i[i], 2);
-				}
-			}
-		}
-		img.pack().pipe(fs.createWriteStream('out-thr.png'));
-	}
 }
-
-
-var colormap = function(x, buffer, index, color) {
-	let mask = [1,1,1];
-	if (color == 'r') {
-		mask = [0,1,1];
-	} else if (color == 'b') {
-		mask = [1,1,0];
-	} else if (color == 'grey') {
-		mask = [0.5,0.5,0.5];
-	}
-	const r = 255*Math.sqrt(Math.min(Math.max(x,0),1));
-	buffer[index] = Math.round(255-r*mask[0]);
-	buffer[index+1] = Math.round(255-r*mask[1]);
-	buffer[index+2] = Math.round(255-r*mask[2]);
-	buffer[index+3] = 255; // alpha channel
-}
-
-var minmax = function(a,nDim) {
-	let norm = [0, 0];
-	for (let x = 0; x < a.length; x++) {
-		if (nDim == 1) {
-			norm[0] = Math.min(a[x], norm[0]);
-			norm[1] = Math.max(a[x], norm[1]);
-		} else if (nDim == 2) {
-			for (let y = 0; y < a[0].length; y++) {
-				norm[0] = Math.min(a[x][y], norm[0]);
-				norm[1] = Math.max(a[x][y], norm[1]);
-			}
-		}
-	}
-	return norm;
-}
-
-var drawMarker = function(img, x, y, radius) {
-	//console.log("draw marker x=" + x + " y=" + y);
-	colormap(1, img.data, ((img.width * (img.height-1-y) + x) << 2), 'b');
-	if (radius > 1) {
-		drawMarker(img, x+1, y, radius-1);
-		drawMarker(img, x, y+1, radius-1);
-		drawMarker(img, x-1, y, radius-1);
-		drawMarker(img, x, y-1, radius-1);
-	}
-	return;
-}
-
-var drawLine = function(img, x1, x2, y1, y2) {
-	log("draw line x1=" + x1 + " y1=" + y1 + " x2=" + x2 + " y2=" + y2);
-	const len = Math.round(Math.sqrt(Math.pow(y2-y1,2)+Math.pow(x2-x1,2)));
-	for (let i=0; i<=len; i++) {
-		const x = x1+Math.round((x2-x1)*i/len);
-		const y = y1+Math.round((y2-y1)*i/len);
-		colormap(1, img.data, ((img.width * (img.height-1-y) + x) << 2), 'grey');
-	}
-
-}
-
-module.exports = Codegen;
