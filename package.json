@@ -19,7 +19,8 @@
 		"pngjs": "^3.4.0"
 	},
 	"devDependencies": {
-		"@types/node": "^7.0.12"
+		"@types/node": "^7.0.12",
+		"eslint": "^6.2.1"
 	},
 	"bugs": {
 		"url": "https://github.com/dest4/stream-audio-fingerprint/issues"
