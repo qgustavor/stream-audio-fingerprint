@@ -20,11 +20,12 @@
 
 'use strict';
 
-import { Transform, Buffer } from 'node';
-import { FFT } from 'dsp.js';
+const { Transform } = require('stream');
+const { Buffer } = require('buffer');
+const dsp = require('dsp.js');
 
 
-const buildOptions = (options) => {
+const buildOptions = (options = {}) => {
 	const verbose = options.verbose || false;
 
 	// sampling rate in Hz. If you change this, you must adapt windowDt and pruningDt below to match your needs
@@ -53,9 +54,8 @@ const buildOptions = (options) => {
 
 	const dt = options.dt || (1 / (samplingRate / step));
 
-	const fft = options.fft || new FFT(nfft, samplingRate);
 	const hwin = options.hwin || (
-		Array(nfft).map((f, i) => (
+		Array(nfft).fill(null).map((f, i) => (
 			0.5 * (1 - Math.cos(2 * Math.PI * i / (nfft - 1)))
 		))
 	);
@@ -104,7 +104,6 @@ const buildOptions = (options) => {
 		nfft,
 		step,
 		dt,
-		fft,
 		hwin,
 		maskDecayLog,
 		ifMin,
@@ -117,7 +116,7 @@ const buildOptions = (options) => {
 	};
 };
 
-export class Codegen extends Transform {
+class Codegen extends Transform {
 	constructor(transformOptions = {}, options) {
 		super({
 			readableObjectMode: true,
@@ -133,6 +132,8 @@ export class Codegen extends Transform {
 		this.stepIndex = 0;
 		this.marks = [];
 		this.threshold = Array(this.options.nfft).fill(null).map(() => -3);
+
+		this.fft = new dsp.FFT(this.options.nfft, this.options.samplingRate);
 	}
 
 	_write(chunk, enc, next) {
@@ -163,35 +164,28 @@ export class Codegen extends Transform {
 		while ((this.stepIndex + nfft) * bps < this.buffer.length + this.bufferDelta) {
 			let data = new Array(nfft); // window data
 
-			// check range. for debugging only
-			//var loLimit = (this.stepIndex + 0) * bps - this.bufferDelta;
-			//if (loLimit < 0) log("fp: loLimit too low: " + loLimit + " sI=" + this.stepIndex + " bPS=" + bps + " sB=" + this.skipBytes + " bD=" + this.bufferDelta + " bL=" + buf.length + " pDB=" + this.practicalDecodedBytes);
-
-			//var hiLimit = (this.stepIndex + nfft-1) * bps - this.bufferDelta
-			//if (hiLimit >= this.buffer.length) log("fp: hiLimit too high: " + hiLimit + " vs " + this.buffer.length + " sI=" + this.stepIndex + " nF=" + nfft + " bPS=" + bps + " sB=" + this.skipBytes + " bD=" + this.bufferDelta + " bL=" + buf.length + " pDB=" + this.practicalDecodedBytes);
-
-			// fill the data, windowed (hwin) and scaled
+			// fill the data, windowed (HWIN) and scaled
 			for (let i = 0, limit = nfft; i < limit; i++) {
 				data[i] = hwin[i] * this.buffer.readInt16LE((this.stepIndex + i) * bps - this.bufferDelta) / Math.pow(2, 8 * bps - 1);
 			}
 			this.stepIndex += step;
 			//console.log("params stepIndex=" + this.stepIndex + " bufD=" + this.bufferDelta);
 
-			FFT.forward(data); 	// compute FFT
+			this.fft.forward(data); 	// compute FFT
 
 			// log-normal surface
 			for (let i = ifMin; i < ifMax; i++) {
 				// the lower part of the spectrum is damped, the higher part is boosted, leading to a better peaks detection.
-				FFT.spectrum[i] = Math.abs(FFT.spectrum[i]) * Math.sqrt(i + 16);
+				this.fft.spectrum[i] = Math.abs(this.fft.spectrum[i]) * Math.sqrt(i + 16);
 			}
 
 			// positive values of the difference between log spectrum and threshold
 			let diff = new Array(nfft / 2);
 			for (let i = ifMin; i < ifMax; i++) {
-				diff[i] = Math.max(Math.log(Math.max(1e-6, FFT.spectrum[i])) - this.threshold[i], 0);
+				diff[i] = Math.max(Math.log(Math.max(1e-6, this.fft.spectrum[i])) - this.threshold[i], 0);
 			}
 
-			// find at most mnlm local maxima in the spectrum at this timestamp.
+			// find at most MNLM local maxima in the spectrum at this timestamp.
 			let iLocMax = new Array(mnlm);
 			let vLocMax = new Array(mnlm);
 			for (let i = 0; i < mnlm; i++) {
@@ -199,29 +193,29 @@ export class Codegen extends Transform {
 				vLocMax[i] = Number.NEGATIVE_INFINITY;
 			}
 			for (let i = ifMin + 1; i < ifMax - 1; i++) {
-				//console.log("checking local maximum at i=" + i + " data[i]=" + data[i] + " vLoc[last]=" + vLocMax[mnlm-1] );
-				if (diff[i] > diff[i - 1] && diff[i] > diff[i + 1] && FFT.spectrum[i] > vLocMax[mnlm - 1]) { // if local maximum big enough
+				//console.log("checking local maximum at i=" + i + " data[i]=" + data[i] + " vLoc[last]=" + vLocMax[MNLM-1] );
+				if (diff[i] > diff[i - 1] && diff[i] > diff[i + 1] && this.fft.spectrum[i] > vLocMax[mnlm - 1]) { // if local maximum big enough
 					// insert the newly found local maximum in the ordered list of maxima
 					for (let j = mnlm - 1; j >= 0; j--) {
 						// navigate the table of previously saved maxima
-						if (j >= 1 && FFT.spectrum[i] > vLocMax[j - 1]) continue;
+						if (j >= 1 && this.fft.spectrum[i] > vLocMax[j - 1]) continue;
 						for (let k = mnlm - 1; k >= j + 1; k--) {
 							iLocMax[k] = iLocMax[k - 1];	// offset the bottom values
 							vLocMax[k] = vLocMax[k - 1];
 						}
 						iLocMax[j] = i;
-						vLocMax[j] = FFT.spectrum[i];
+						vLocMax[j] = this.fft.spectrum[i];
 						break;
 					}
 				}
 			}
 
-			// now that we have the mnlm highest local maxima of the spectrum,
+			// now that we have the MNLM highest local maxima of the spectrum,
 			// update the local maximum threshold so that only major peaks are taken into account.
 			for (let i = 0; i < mnlm; i++) {
 				if (vLocMax[i] > Number.NEGATIVE_INFINITY) {
 					for (let j = ifMin; j < ifMax; j++) {
-						this.threshold[j] = Math.max(this.threshold[j], Math.log(FFT.spectrum[iLocMax[i]]) + eww[iLocMax[i]][j]);
+						this.threshold[j] = Math.max(this.threshold[j], Math.log(this.fft.spectrum[iLocMax[i]]) + eww[iLocMax[i]][j]);
 					}
 				} else {
 					vLocMax.splice(i, mnlm - i); // remove the last elements.
@@ -262,9 +256,7 @@ export class Codegen extends Transform {
 
 						for (let k = 0; k < m2.i.length; k++) {
 							if (m2.i[k] != m.i[i] && Math.abs(m2.i[k] - m.i[i]) < windowDf) {
-								tcodes.push(m.t); //Math.round(this.stepIndex/step));
-								// in the hash: dt=(t0-j) has values between 0 and windowDt, so for <65 6 bits each
-								//				f1=m2.i[k] , f2=m.i[i] between 0 and nfft/2-1, so for <255 8 bits each.
+								tcodes.push(m.t); //Math.round(this.stepIndex/STEP));
 								hcodes.push(m2.i[k] + nfft / 2 * (m.i[i] + nfft / 2 * (t0 - j)));
 								nFingers += 1;
 								nFingersTotal += 1;
@@ -293,10 +285,6 @@ export class Codegen extends Transform {
 			this.buffer = this.buffer.slice(delta);
 		}
 
-		if (verbose) {
-			console.log("fp processed " + (this.practicalDecodedBytes - this.decodedBytesSinceCallback) + " while threshold is " + (0.99 * this.thresholdBytes));
-		}
-
 		if (tcodes.length > 0) {
 			this.push({ tcodes: tcodes, hcodes: hcodes });
 			// this will eventually trigger data events on the read interface
@@ -305,3 +293,5 @@ export class Codegen extends Transform {
 		next();
 	}
 }
+
+module.exports = Codegen;
