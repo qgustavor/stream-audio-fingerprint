@@ -20,8 +20,8 @@
 
 'use strict';
 
-import {Transform, Buffer} from 'node';
-import {FFT} from 'dsp.js';
+import { Transform, Buffer } from 'node';
+import { FFT } from 'dsp.js';
 
 
 const buildOptions = (options) => {
@@ -75,7 +75,7 @@ const buildOptions = (options) => {
 
 	// time window to generate landmark pairs. time in units of dt (see definition above)
 	// a little more than 1 sec.
-	const windowDt = options.windowDt || 96; 
+	const windowDt = options.windowDt || 96;
 	// about 250 ms, window to remove previous peaks that are superseded by later ones.
 	// tune the pruningDt value to match the effects of maskDecayLog.
 	// also, pruningDt controls the latency of the pipeline. higher pruningDt = higher latency
@@ -122,7 +122,7 @@ export class Codegen extends Transform {
 		super({
 			readableObjectMode: true,
 			highWaterMark: 10,
-			...transformOptions, 
+			...transformOptions,
 		});
 
 		this.options = buildOptions(options);
@@ -153,12 +153,12 @@ export class Codegen extends Transform {
 			eww,
 		} = this.options;
 
-		if (verbose) console.log("t=" + Math.round(this.stepIndex/step) + " received " + chunk.length + " bytes");
+		if (verbose) console.log("t=" + Math.round(this.stepIndex / step) + " received " + chunk.length + " bytes");
 
 		let tcodes = [];
 		let hcodes = [];
 
-		this.buffer = Buffer.concat([this.buffer,chunk]);
+		this.buffer = Buffer.concat([this.buffer, chunk]);
 
 		while ((this.stepIndex + nfft) * bps < this.buffer.length + this.bufferDelta) {
 			let data = new Array(nfft); // window data
@@ -171,8 +171,8 @@ export class Codegen extends Transform {
 			//if (hiLimit >= this.buffer.length) log("fp: hiLimit too high: " + hiLimit + " vs " + this.buffer.length + " sI=" + this.stepIndex + " nF=" + nfft + " bPS=" + bps + " sB=" + this.skipBytes + " bD=" + this.bufferDelta + " bL=" + buf.length + " pDB=" + this.practicalDecodedBytes);
 
 			// fill the data, windowed (hwin) and scaled
-			for (let i=0,limit = nfft; i<limit; i++) {
-				data[i] = hwin[i] * this.buffer.readInt16LE((this.stepIndex + i) * bps - this.bufferDelta) / Math.pow(2, 8*bps-1);
+			for (let i = 0, limit = nfft; i < limit; i++) {
+				data[i] = hwin[i] * this.buffer.readInt16LE((this.stepIndex + i) * bps - this.bufferDelta) / Math.pow(2, 8 * bps - 1);
 			}
 			this.stepIndex += step;
 			//console.log("params stepIndex=" + this.stepIndex + " bufD=" + this.bufferDelta);
@@ -180,34 +180,34 @@ export class Codegen extends Transform {
 			FFT.forward(data); 	// compute FFT
 
 			// log-normal surface
-			for (let i=ifMin; i<ifMax; i++) {
+			for (let i = ifMin; i < ifMax; i++) {
 				// the lower part of the spectrum is damped, the higher part is boosted, leading to a better peaks detection.
-				FFT.spectrum[i] = Math.abs(FFT.spectrum[i])*Math.sqrt(i+16);
+				FFT.spectrum[i] = Math.abs(FFT.spectrum[i]) * Math.sqrt(i + 16);
 			}
 
 			// positive values of the difference between log spectrum and threshold
-			let diff = new Array(nfft/2);
-			for (let i=ifMin; i<ifMax; i++) {
-				diff[i] = Math.max(	Math.log(Math.max(1e-6,FFT.spectrum[i])) - this.threshold[i] , 0);
+			let diff = new Array(nfft / 2);
+			for (let i = ifMin; i < ifMax; i++) {
+				diff[i] = Math.max(Math.log(Math.max(1e-6, FFT.spectrum[i])) - this.threshold[i], 0);
 			}
 
 			// find at most mnlm local maxima in the spectrum at this timestamp.
 			let iLocMax = new Array(mnlm);
 			let vLocMax = new Array(mnlm);
-			for (let i=0; i<mnlm; i++) {
+			for (let i = 0; i < mnlm; i++) {
 				iLocMax[i] = NaN;
 				vLocMax[i] = Number.NEGATIVE_INFINITY;
 			}
-			for (let i=ifMin+1; i<ifMax-1; i++) {
+			for (let i = ifMin + 1; i < ifMax - 1; i++) {
 				//console.log("checking local maximum at i=" + i + " data[i]=" + data[i] + " vLoc[last]=" + vLocMax[mnlm-1] );
-				if (diff[i] > diff[i-1] && diff[i] > diff[i+1] && FFT.spectrum[i] > vLocMax[mnlm-1]) { // if local maximum big enough
+				if (diff[i] > diff[i - 1] && diff[i] > diff[i + 1] && FFT.spectrum[i] > vLocMax[mnlm - 1]) { // if local maximum big enough
 					// insert the newly found local maximum in the ordered list of maxima
-					for (let j=mnlm-1; j>=0; j--) {
+					for (let j = mnlm - 1; j >= 0; j--) {
 						// navigate the table of previously saved maxima
-						if (j >= 1 && FFT.spectrum[i] > vLocMax[j-1]) continue;
-						for (let k=mnlm-1; k>=j+1; k--) {
-							iLocMax[k] = iLocMax[k-1];	// offset the bottom values
-							vLocMax[k] = vLocMax[k-1];
+						if (j >= 1 && FFT.spectrum[i] > vLocMax[j - 1]) continue;
+						for (let k = mnlm - 1; k >= j + 1; k--) {
+							iLocMax[k] = iLocMax[k - 1];	// offset the bottom values
+							vLocMax[k] = vLocMax[k - 1];
 						}
 						iLocMax[j] = i;
 						vLocMax[j] = FFT.spectrum[i];
@@ -218,29 +218,29 @@ export class Codegen extends Transform {
 
 			// now that we have the mnlm highest local maxima of the spectrum,
 			// update the local maximum threshold so that only major peaks are taken into account.
-			for (let i=0; i<mnlm; i++) {
+			for (let i = 0; i < mnlm; i++) {
 				if (vLocMax[i] > Number.NEGATIVE_INFINITY) {
-					for (let j=ifMin; j<ifMax; j++) {
+					for (let j = ifMin; j < ifMax; j++) {
 						this.threshold[j] = Math.max(this.threshold[j], Math.log(FFT.spectrum[iLocMax[i]]) + eww[iLocMax[i]][j]);
 					}
 				} else {
-					vLocMax.splice(i,mnlm-i); // remove the last elements.
-					iLocMax.splice(i,mnlm-i);
+					vLocMax.splice(i, mnlm - i); // remove the last elements.
+					iLocMax.splice(i, mnlm - i);
 					break;
 				}
 			}
 
 			// array that stores local maxima for each time step
-			this.marks.push({"t": Math.round(this.stepIndex/step), "i":iLocMax, "v":vLocMax});
+			this.marks.push({ "t": Math.round(this.stepIndex / step), "i": iLocMax, "v": vLocMax });
 
 			// remove previous (in time) maxima that would be too close and/or too low.
 			let nm = this.marks.length;
-			let t0 = nm-pruningDt-1;
-			for (let i=nm-1; i>=Math.max(t0+1,0); i--) {
+			let t0 = nm - pruningDt - 1;
+			for (let i = nm - 1; i >= Math.max(t0 + 1, 0); i--) {
 				//console.log("pruning ntests=" + this.marks[i].v.length);
-				for (let j=0; j<this.marks[i].v.length; j++) {
+				for (let j = 0; j < this.marks[i].v.length; j++) {
 					//console.log("pruning " + this.marks[i].v[j] + " <? " + this.threshold[this.marks[i].i[j]] + " * " + Math.pow(this.mask_decay, lenMarks-1-i));
-					if (this.marks[i].i[j] != 0 && Math.log(this.marks[i].v[j]) < this.threshold[this.marks[i].i[j]] + maskDecayLog * (nm-1-i)) {
+					if (this.marks[i].i[j] != 0 && Math.log(this.marks[i].v[j]) < this.threshold[this.marks[i].i[j]] + maskDecayLog * (nm - 1 - i)) {
 						this.marks[i].v[j] = Number.NEGATIVE_INFINITY;
 						this.marks[i].i[j] = Number.NEGATIVE_INFINITY;
 					}
@@ -253,19 +253,19 @@ export class Codegen extends Transform {
 				let m = this.marks[t0];
 
 				loopCurrentPeaks:
-				for (let i=0; i < m.i.length; i++) {
+				for (let i = 0; i < m.i.length; i++) {
 					let nFingers = 0;
 
-					for (let j=t0; j>=Math.max(0,t0-windowDt); j--) {
+					for (let j = t0; j >= Math.max(0, t0 - windowDt); j--) {
 
 						let m2 = this.marks[j];
 
-						for (let k=0; k<m2.i.length; k++) {
+						for (let k = 0; k < m2.i.length; k++) {
 							if (m2.i[k] != m.i[i] && Math.abs(m2.i[k] - m.i[i]) < windowDf) {
 								tcodes.push(m.t); //Math.round(this.stepIndex/step));
 								// in the hash: dt=(t0-j) has values between 0 and windowDt, so for <65 6 bits each
 								//				f1=m2.i[k] , f2=m.i[i] between 0 and nfft/2-1, so for <255 8 bits each.
-								hcodes.push(m2.i[k] + nfft/2 * (m.i[i] + nfft/2 * (t0-j)));
+								hcodes.push(m2.i[k] + nfft / 2 * (m.i[i] + nfft / 2 * (t0 - j)));
 								nFingers += 1;
 								nFingersTotal += 1;
 								if (nFingers >= mppp) continue loopCurrentPeaks;
@@ -275,13 +275,13 @@ export class Codegen extends Transform {
 				}
 			}
 			if (nFingersTotal > 0 && verbose) {
-				console.log("t=" + Math.round(this.stepIndex/step) + " generated " + nFingersTotal + " fingerprints");
+				console.log("t=" + Math.round(this.stepIndex / step) + " generated " + nFingersTotal + " fingerprints");
 			}
-			
-			this.marks.splice(0,t0+1-windowDt);
+
+			this.marks.splice(0, t0 + 1 - windowDt);
 
 			// decrease the threshold for the next iteration
-			for (let j=0; j<this.threshold.length; j++) {
+			for (let j = 0; j < this.threshold.length; j++) {
 				this.threshold[j] += maskDecayLog;
 			}
 		}
@@ -294,7 +294,7 @@ export class Codegen extends Transform {
 		}
 
 		if (verbose) {
-			console.log("fp processed " + (this.practicalDecodedBytes - this.decodedBytesSinceCallback) + " while threshold is " + (0.99*this.thresholdBytes));
+			console.log("fp processed " + (this.practicalDecodedBytes - this.decodedBytesSinceCallback) + " while threshold is " + (0.99 * this.thresholdBytes));
 		}
 
 		if (tcodes.length > 0) {
