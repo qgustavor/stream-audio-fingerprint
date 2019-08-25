@@ -24,6 +24,26 @@ import {FFT} from 'dsp.js';
 
 
 interface CodegenOptions {
+  verbose: boolean;
+  samplingRate: number;
+  bps: number;
+  mnlm: number;
+  mppp: number;
+  nfft: number;
+  step: number;
+  dt: number;
+  hwin: number[];
+  maskDecayLog: number;
+  ifMin: number;
+  ifMax: number;
+  windowDf: number;
+  windowDt: number;
+  pruningDt: number;
+  maskDf: number;
+  eww: number[][];
+}
+
+interface CodegenUserOpts {
   verbose?: boolean;
   samplingRate?: number;
   bps?: number;
@@ -44,7 +64,7 @@ interface CodegenOptions {
 }
 
 
-const buildOptions = (options: CodegenOptions): CodegenOptions => {
+const buildOptions = (options: CodegenUserOpts): CodegenOptions => {
   const verbose = options.verbose || false;
 
   // sampling rate in Hz. If you change this, you must adapt windowDt and pruningDt below to match your needs
@@ -155,7 +175,7 @@ declare interface Codegen {
 }
 
 class Codegen extends Transform {
-    options: CodegenOptions = {};
+    options: CodegenOptions = {} as CodegenOptions;
 
     buffer: Buffer;
 
@@ -169,7 +189,7 @@ class Codegen extends Transform {
 
     fft: any;
 
-    constructor(transformOptions?: TransformOptions, options?: CodegenOptions) {
+    constructor(transformOptions?: TransformOptions, options?: CodegenUserOpts) {
       super({
         readableObjectMode: true,
         highWaterMark: 10,

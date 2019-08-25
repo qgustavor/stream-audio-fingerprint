@@ -1,13 +1,13 @@
 {
 	"compilerOptions": {
-		"module": "commonjs",
 		"target": "es5",
-		"allowJs": true
+		"module": "commonjs",
+		"declaration": true,
+		"outDir": "build",
+		"strict": true
 	},
-	"include": [
-		"typings/**/*"
-	],
 	"exclude": [
-		"node_modules"
+		"node_modules",
+		"build"
 	]
 }
