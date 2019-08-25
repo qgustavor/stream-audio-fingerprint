@@ -20,7 +20,12 @@
 	},
 	"devDependencies": {
 		"@types/node": "^7.0.12",
-		"eslint": "^6.2.1"
+		"@typescript-eslint/eslint-plugin": "^2.0.0",
+		"@typescript-eslint/parser": "^2.0.0",
+		"eslint": "^6.2.1",
+		"eslint-config-airbnb-base": "^14.0.0",
+		"eslint-plugin-import": "^2.18.2",
+		"typescript": "^3.5.3"
 	},
 	"bugs": {
 		"url": "https://github.com/dest4/stream-audio-fingerprint/issues"
