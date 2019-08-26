@@ -42,7 +42,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // { tcodes: [time stamps], hcodes: [fingerprints] }
 var stream_1 = require("stream");
 var buffer_1 = require("buffer");
-var dsp_js_1 = require("dsp.js");
+var fft_1 = require("./lib/fft");
 var buildOptions = function (options) {
     var verbose = options.verbose || false;
     // sampling rate in Hz. If you change this, you must adapt windowDt and pruningDt below to match your needs
@@ -127,6 +127,7 @@ var Codegen = /** @class */ (function (_super) {
             _this.buffer = buffer_1.Buffer.concat([_this.buffer, chunk]);
             while ((_this.stepIndex + nfft) * bps < _this.buffer.length + _this.bufferDelta) {
                 var data = new Array(nfft); // window data
+                var image = new Array(nfft).fill(0);
                 // fill the data, windowed (HWIN) and scaled
                 for (var i = 0, limit = nfft; i < limit; i += 1) {
                     data[i] = (hwin[i]
@@ -135,7 +136,7 @@ var Codegen = /** @class */ (function (_super) {
                     ) / Math.pow(2, 8 * bps - 1);
                 }
                 _this.stepIndex += step;
-                _this.fft.forward(data); // compute FFT
+                _this.fft.forward(data, image); // compute FFT
                 // log-normal surface
                 for (var i = ifMin; i < ifMax; i += 1) {
                     // the lower part of the spectrum is damped,
@@ -253,7 +254,7 @@ var Codegen = /** @class */ (function (_super) {
         _this.stepIndex = 0;
         _this.marks = [];
         _this.threshold = Array(_this.options.nfft).fill(null).map(function () { return -3; });
-        _this.fft = new dsp_js_1.FFT(_this.options.nfft, _this.options.samplingRate);
+        _this.fft = new fft_1.default(_this.options.nfft);
         return _this;
     }
     return Codegen;

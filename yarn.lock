@@ -216,10 +216,6 @@ doctrine@^3.0.0:
   dependencies:
     esutils "^2.0.2"
 
-"dsp.js@git+https://git@github.com/corbanbrook/dsp.js.git":
-  version "1.0.0"
-  resolved "git+https://git@github.com/corbanbrook/dsp.js.git#051f341d8e1d05515efecb1851bbc862decf02bc"
-
 emoji-regex@^7.0.1:
   version "7.0.3"
   resolved "https://registry.yarnpkg.com/emoji-regex/-/emoji-regex-7.0.3.tgz#933a04052860c85e83c122479c4748a8e4c72156"

@@ -3,7 +3,7 @@
 	"version": "1.0.4",
 	"description": "Audio landmark fingerprinting as a Node Stream module",
 	"main": "build/codegen_landmark.js",
-	"types" : "build/codegen_landmark.d.ts",
+	"types": "build/codegen_landmark.d.ts",
 	"scripts": {
 		"build": "tsc"
 	},
@@ -15,7 +15,6 @@
 	"author": "Alexandre Storelli <a_npm@storelli.fr>",
 	"license": "MPL-2.0",
 	"dependencies": {
-		"dsp.js": "git+https://git@github.com/corbanbrook/dsp.js.git",
 		"pngjs": "^3.4.0"
 	},
 	"devDependencies": {

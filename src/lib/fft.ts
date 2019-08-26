@@ -70,6 +70,8 @@ class FFTNayuki {
         this.cosTable[i] = Math.cos(2 * Math.PI * i / n);
         this.sinTable[i] = Math.sin(2 * Math.PI * i / n);
       }
+
+      this.spectrum = new Array(n / 4);
     }
 
     /*
@@ -107,6 +109,8 @@ class FFTNayuki {
         }
       }
 
+      this.calculateSpectrum(real, imag);
+
       // Returns the integer whose value is the reverse of the lowest 'bits' bits of the integer 'x'.
       function reverseBits(x: number, bits: number): number {
         let y = 0;
@@ -115,6 +119,23 @@ class FFTNayuki {
           x >>>= 1;
         }
         return y;
+      }
+    }
+
+    private calculateSpectrum(real: Array<number>|Float64Array, imag: Array<number>|Float64Array): void {
+      // Should this be 4 / buffersize?
+      const bSi = 4 / this.n;
+      let mag;
+
+      for (let i = 0, N = this.n / 4; i < N; i++) {
+        mag = bSi * Math.sqrt(real[i] ** 2 + imag[i] ** 2);
+
+        if (mag > this.peak) {
+          this.peakBand = i;
+          this.peak = mag;
+        }
+
+        this.spectrum[i] = mag;
       }
     }
 }

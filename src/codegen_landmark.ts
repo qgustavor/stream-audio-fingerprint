@@ -20,7 +20,7 @@
 
 import {Transform, TransformOptions} from 'stream';
 import {Buffer} from 'buffer';
-import {FFT} from 'dsp.js';
+import FFT from './lib/fft';
 
 
 interface CodegenOptions {
@@ -187,7 +187,7 @@ class Codegen extends Transform {
 
     threshold: number[];
 
-    fft: any;
+    fft: FFT;
 
     constructor(transformOptions?: TransformOptions, options?: CodegenUserOpts) {
       super({
@@ -205,7 +205,7 @@ class Codegen extends Transform {
       this.marks = [];
       this.threshold = Array(this.options.nfft).fill(null).map(() => -3);
 
-      this.fft = new FFT(this.options.nfft, this.options.samplingRate);
+      this.fft = new FFT(this.options.nfft);
     }
 
     public _transform: Transform['_transform'] = (chunk, enc, next) => {
@@ -235,6 +235,7 @@ class Codegen extends Transform {
 
       while ((this.stepIndex + nfft) * bps < this.buffer.length + this.bufferDelta) {
         const data = new Array(nfft); // window data
+        const image = new Array(nfft).fill(0);
 
         // fill the data, windowed (HWIN) and scaled
         for (let i = 0, limit = nfft; i < limit; i += 1) {
@@ -246,7 +247,7 @@ class Codegen extends Transform {
         }
         this.stepIndex += step;
 
-        this.fft.forward(data); // compute FFT
+        this.fft.forward(data, image); // compute FFT
 
         // log-normal surface
         for (let i = ifMin; i < ifMax; i += 1) {

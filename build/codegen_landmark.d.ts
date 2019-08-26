@@ -1,5 +1,6 @@
 /// <reference types="node" />
 import { Transform, TransformOptions } from 'stream';
+import FFT from './lib/fft';
 interface CodegenOptions {
     verbose: boolean;
     samplingRate: number;
@@ -58,7 +59,7 @@ declare class Codegen extends Transform {
     stepIndex: number;
     marks: Mark[];
     threshold: number[];
-    fft: any;
+    fft: FFT;
     constructor(transformOptions?: TransformOptions, options?: CodegenUserOpts);
     _transform: Transform['_transform'];
 }
