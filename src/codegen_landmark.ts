@@ -19,7 +19,6 @@
 // { tcodes: [time stamps], hcodes: [fingerprints] }
 
 import { Transform, TransformOptions } from 'stream'
-import { Buffer } from 'buffer'
 import FFT from './lib/fft'
 
 interface CodegenOptions {
@@ -172,7 +171,7 @@ declare interface Codegen {
 
 class Codegen extends Transform {
   options: CodegenOptions = {}
-  buffer: Buffer
+  buffer: Uint8Array
   bufferDelta: number
   stepIndex: number
   marks: Mark[]
@@ -188,7 +187,7 @@ class Codegen extends Transform {
 
     this.options = buildOptions((options != null) || {})
 
-    this.buffer = Buffer.alloc(0)
+    this.buffer = new Uint8Array(0)
     this.bufferDelta = 0
 
     this.stepIndex = 0
@@ -216,24 +215,31 @@ class Codegen extends Transform {
       eww
     } = this.options
 
+    const chunkLength = chunk.length as number
+
     if (verbose) {
       const t = Math.round(this.stepIndex / step).toString()
-      const received = (chunk.length as number).toString()
+      const received = chunkLength.toString()
       console.log(`t=${t} received ${received} bytes`)
     }
 
     const tcodes: number[] = []
     const hcodes: number[] = []
 
-    this.buffer = Buffer.concat([this.buffer, chunk])
+    const concatedBuffer = new Uint8Array(this.buffer.length + chunkLength)
+    concatedBuffer.set(this.buffer, 0)
+    concatedBuffer.set(chunk, this.buffer.length)
+    this.buffer = concatedBuffer
 
-    while ((this.stepIndex + nfft) * bps < (this.buffer.length as number) + this.bufferDelta) {
+    const bufferView = new DataView(concatedBuffer.buffer)
+
+    while ((this.stepIndex + nfft) * bps < this.buffer.length + this.bufferDelta) {
       const data = new Array(nfft) // window data
       const image = new Array(nfft).fill(0)
 
       // fill the data, windowed (HWIN) and scaled
       for (let i = 0, limit = nfft; i < limit; i += 1) {
-        const readInt = this.buffer.readInt16LE((this.stepIndex + i) * bps - this.bufferDelta)
+        const readInt = bufferView.getInt16((this.stepIndex + i) * bps - this.bufferDelta, true)
         data[i] = (hwin[i] * readInt) / Math.pow(2, 8 * bps - 1)
       }
       this.stepIndex += step
