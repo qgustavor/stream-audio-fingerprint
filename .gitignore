@@ -57,3 +57,6 @@ jspm_packages/
 # dotenv environment variables file
 .env
 
+/build
+/out-fft.png
+/out-thr.png
