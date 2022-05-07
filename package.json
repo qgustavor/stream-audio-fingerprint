@@ -1,32 +1,30 @@
 {
-	"name": "@qgustavor/stream-audio-fingerprint",
-	"version": "2.0.0",
-	"description": "Audio landmark fingerprinting as a JavaScript module",
-	"type": "module",
-	"main": "build/codegen_landmark.js",
-	"types": "build/codegen_landmark.d.ts",
-	"scripts": {
-		"build": "esbuild src/codegen_landmark.ts --bundle --platform=node --format=esm --outdir=build",
-		"test": "ts-standard"
-	},
-	"keywords": [
-		"audio",
-		"fingerprint",
-		"stream"
-	],
-	"author": "Alexandre Storelli <a_npm@storelli.fr>",
-	"contributors": [
-		"Gustavo Rodrigues <https://github.com/qgustavor>"
-	],
-	"license": "MPL-2.0",
-	"devDependencies": {
-		"esbuild": "^0.14.38",
-		"pngjs": "^3.4.0",
-		"ts-standard": "^11.0.0",
-		"tsc": "^2.0.4"
-	},
-	"bugs": {
-		"url": "https://github.com/qgustavor/stream-audio-fingerprint/issues"
-	},
-	"homepage": "https://github.com/qgustavor/stream-audio-fingerprint"
+  "name": "@qgustavor/stream-audio-fingerprint",
+  "version": "2.0.0",
+  "description": "Audio landmark fingerprinting as a JavaScript module",
+  "type": "module",
+  "main": "build/codegen_landmark.js",
+  "types": "build/codegen_landmark.d.ts",
+  "scripts": {
+    "build": "esbuild src/codegen_landmark.ts --bundle --platform=neutral --outdir=build --out-extension:.js=.mjs",
+    "test": "ts-standard"
+  },
+  "keywords": [
+    "audio",
+    "fingerprint",
+    "stream"
+  ],
+  "author": "Alexandre Storelli <a_npm@storelli.fr>",
+  "contributors": [
+    "Gustavo Rodrigues <https://github.com/qgustavor>"
+  ],
+  "license": "MPL-2.0",
+  "devDependencies": {
+    "esbuild": "^0.14.38",
+    "ts-standard": "^11.0.0"
+  },
+  "bugs": {
+    "url": "https://github.com/qgustavor/stream-audio-fingerprint/issues"
+  },
+  "homepage": "https://github.com/qgustavor/stream-audio-fingerprint"
 }

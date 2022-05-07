@@ -16,7 +16,7 @@ Note the existence of another good landmark fingerprinter in Python, [dejavu](ht
 In a nutshell,
 - a spectrogram is computed from the audio signal
 - significant peaks are chosen in this time-frequency map. a latency of 250ms is used to determine if a peak is not followed by a bigger peak.
-- fingerprints are computed by linking peaks with ```dt```, ```f1``` and ```f2```, ready to be inserted in a database or to be compared with other fingerprints.
+- fingerprints are computed by linking peaks with `dt`, `f1` and `f2`, ready to be inserted in a database or to be compared with other fingerprints.
 
 ![Spectrogram, peaks and pairs](out-fft.png)
 
@@ -32,33 +32,38 @@ Given the same audio, this figure shows the same peaks and the internal *forward
 npm install @qgustavor/stream-audio-fingerprint
 ```
 
-The algorithm is in ```codegen_landmark.js```.
+The algorithm is in `src/codegen_landmark.ts`.
 
-A demo usage is proposed below. It requires the executable [ffmpeg](https://ffmpeg.org/download.html) to run.
+A demo usage is proposed below. It requires the executable [ffmpeg](https://ffmpeg.org/download.html) and Deno to run.
 
 ```javascript
-import { spawn } 'child_process'
-import Codegen from 'stream-audio-fingerprint'
+import Codegen from './codegen_landmark.ts'
+import { readableStreamFromReader } from 'https://deno.land/std@0.138.0/streams/conversion.ts'
 
-const decoder = spawn('ffmpeg', [
-	'-i', 'pipe:0',
-	'-acodec', 'pcm_s16le',
-	'-ar', 22050,
-	'-ac', 1,
-	'-f', 's16le',
-	'-v', 'fatal',
-	'pipe:1'
-], { stdio: ['pipe', 'pipe', process.stderr] })
-process.stdin.pipe(decoder.stdin)
+const decoder = Deno.run({
+  cmd: [
+    'ffmpeg',
+    '-i', 'pipe:0',
+    '-acodec', 'pcm_s16le',
+    '-ar', '22050',
+    '-ac', '1',
+    '-f', 's16le',
+    '-v', 'fatal',
+    'pipe:1'
+  ],
+  stdout: 'piped',
+  stdin: 'inherit'
+})
 
 const fingerprinter = new Codegen()
-decoder.stdout.pipe(fingerprinter.writable)
+const fingerprinterResult = readableStreamFromReader(decoder.stdout)
+  .pipeThrough(fingerprinter)
 
-for await (const data of fingerprinter.readable) {
-	for (let i=0; i < data.tcodes.length; i++) {
-		console.log(`time=${data.tcodes[i]} fingerprint=${data.hcodes[i]}`)
-	}
-})
+for await (const data of fingerprinterResult) {
+  for (let i = 0; i < data.tcodes.length; i++) {
+    console.log(`time=${data.tcodes[i]} fingerprint=${data.hcodes[i]}`)
+  }
+}
 ```
 
 and then we pipe audio data, either a stream or a file

@@ -18,8 +18,7 @@
 // The readable side outputs objects of the form
 // { tcodes: [time stamps], hcodes: [fingerprints] }
 
-import { Transform, TransformOptions } from 'stream'
-import FFT from './lib/fft'
+import FFT from './lib/fft.ts'
 
 interface CodegenOptions {
   verbose: boolean
@@ -92,11 +91,10 @@ const buildOptions = (options: CodegenUserOpts): CodegenOptions => {
 
   const dt = options.dt ?? (1 / (samplingRate / step))
 
-  const hwin = (options.hwin != null) ?? (
-    Array(nfft).fill(null).map((f, i) => (
+  const hwin = options.hwin ??
+    Array(nfft).fill(null).map((_f, i) => (
       0.5 * (1 - Math.cos(((2 * Math.PI) * i) / (nfft - 1)))
     ))
-  )
 
   // threshold decay factor between frames.
   const maskDecayLog = options.maskDecayLog ?? Math.log(0.995)
@@ -125,13 +123,12 @@ const buildOptions = (options: CodegenUserOpts): CodegenOptions => {
   // gaussian mask is a polynom when working on the log-spectrum. log(exp()) = Id()
   // MASK_DF is multiplied by Math.sqrt(i+3) to have wider masks at higher frequencies
   // see the visualization out-thr.png for better insight of what is happening
-  const eww = (options.eww != null) ?? (
-    Array(nfft / 2).fill(null).map((f, i) => (
-      Array(nfft / 2).fill(null).map((f2, j) => (
+  const eww = options.eww ??
+    Array(nfft / 2).fill(null).map((_f, i) => (
+      Array(nfft / 2).fill(null).map((_f, j) => (
         -0.5 * Math.pow((j - i) / maskDf / Math.sqrt(i + 3), 2)
       ))
     ))
-  )
 
   return {
     verbose,
@@ -160,32 +157,34 @@ interface Mark {
   v: number[]
 }
 
-interface CodegenBuffer {
+export interface CodegenBuffer {
   tcodes: number[]
   hcodes: number[]
 }
 
-declare interface Codegen {
-  on: ((event: 'data', listener: (chunk: CodegenBuffer) => void) => this) & ((event: string, listener: Function) => this)
-}
-
-class Codegen extends Transform {
-  options: CodegenOptions = {}
+class Codegen {
+  options: CodegenOptions
   buffer: Uint8Array
   bufferDelta: number
   stepIndex: number
   marks: Mark[]
   threshold: number[]
   fft: FFT
+  transformStream: TransformStream<Uint8Array, CodegenBuffer>
+  readable: ReadableStream<CodegenBuffer>
+  writable: WritableStream<Uint8Array>
 
-  constructor (transformOptions?: TransformOptions, options?: CodegenUserOpts) {
-    super({
-      readableObjectMode: true,
-      highWaterMark: 10,
-      ...transformOptions ?? {}
+  constructor (options?: CodegenUserOpts) {
+    this.transformStream = new TransformStream({
+      transform: this._transform.bind(this)
+    }, {
+      highWaterMark: 10
     })
 
-    this.options = buildOptions((options != null) || {})
+    this.readable = this.transformStream.readable
+    this.writable = this.transformStream.writable
+
+    this.options = buildOptions(options ?? {})
 
     this.buffer = new Uint8Array(0)
     this.bufferDelta = 0
@@ -197,7 +196,7 @@ class Codegen extends Transform {
     this.fft = new FFT(this.options.nfft)
   }
 
-  public _transform: Transform['_transform'] = (chunk, enc, next) => {
+  _transform (chunk: Uint8Array | null, controller: TransformStreamDefaultController): void {
     const {
       verbose,
       bps,
@@ -215,18 +214,21 @@ class Codegen extends Transform {
       eww
     } = this.options
 
-    const chunkLength = chunk.length as number
+    if (chunk === null) {
+      controller.terminate()
+      return
+    }
 
     if (verbose) {
       const t = Math.round(this.stepIndex / step).toString()
-      const received = chunkLength.toString()
+      const received = chunk.length.toString()
       console.log(`t=${t} received ${received} bytes`)
     }
 
     const tcodes: number[] = []
     const hcodes: number[] = []
 
-    const concatedBuffer = new Uint8Array(this.buffer.length + chunkLength)
+    const concatedBuffer = new Uint8Array(this.buffer.length + chunk.length)
     concatedBuffer.set(this.buffer, 0)
     concatedBuffer.set(chunk, this.buffer.length)
     this.buffer = concatedBuffer
@@ -238,7 +240,7 @@ class Codegen extends Transform {
       const image = new Array(nfft).fill(0)
 
       // fill the data, windowed (HWIN) and scaled
-      for (let i = 0, limit = nfft; i < limit; i += 1) {
+      for (let i = 0, limit = nfft; i < limit; i++) {
         const readInt = bufferView.getInt16((this.stepIndex + i) * bps - this.bufferDelta, true)
         data[i] = (hwin[i] * readInt) / Math.pow(2, 8 * bps - 1)
       }
@@ -366,10 +368,8 @@ class Codegen extends Transform {
 
     if (tcodes.length > 0) {
       // this will eventually trigger data events on the read interface
-      this.push({ tcodes, hcodes })
+      controller.enqueue({ tcodes, hcodes })
     }
-
-    next()
   }
 }
 
