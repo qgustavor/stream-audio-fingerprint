@@ -170,20 +170,8 @@ class Codegen {
   marks: Mark[]
   threshold: number[]
   fft: FFT
-  transformStream: TransformStream<Uint8Array, CodegenBuffer>
-  readable: ReadableStream<CodegenBuffer>
-  writable: WritableStream<Uint8Array>
 
   constructor (options?: CodegenUserOpts) {
-    this.transformStream = new TransformStream({
-      transform: this._transform.bind(this)
-    }, {
-      highWaterMark: 10
-    })
-
-    this.readable = this.transformStream.readable
-    this.writable = this.transformStream.writable
-
     this.options = buildOptions(options ?? {})
 
     this.buffer = new Uint8Array(0)
@@ -196,7 +184,7 @@ class Codegen {
     this.fft = new FFT(this.options.nfft)
   }
 
-  _transform (chunk: Uint8Array | null, controller: TransformStreamDefaultController): void {
+  process (chunk: Uint8Array): CodegenBuffer {
     const {
       verbose,
       bps,
@@ -213,11 +201,6 @@ class Codegen {
       pruningDt,
       eww
     } = this.options
-
-    if (chunk === null) {
-      controller.terminate()
-      return
-    }
 
     if (verbose) {
       const t = Math.round(this.stepIndex / step).toString()
@@ -269,9 +252,11 @@ class Codegen {
         vLocMax[i] = Number.NEGATIVE_INFINITY
       }
       for (let i = ifMin + 1; i < ifMax - 1; i += 1) {
-        if (diff[i] > diff[i - 1] &&
-                    diff[i] > diff[i + 1] &&
-                    this.fft.spectrum[i] > vLocMax[mnlm - 1]) { // if local maximum big enough
+        if (
+          diff[i] > diff[i - 1] &&
+          diff[i] > diff[i + 1] &&
+          this.fft.spectrum[i] > vLocMax[mnlm - 1]
+        ) { // if local maximum big enough
           // insert the newly found local maximum in the ordered list of maxima
           for (let j = mnlm - 1; j >= 0; j -= 1) {
             // navigate the table of previously saved maxima
@@ -310,12 +295,13 @@ class Codegen {
       const nm = this.marks.length
       const t0 = nm - pruningDt - 1
       for (let i = nm - 1; i >= Math.max(t0 + 1, 0); i -= 1) {
-        // console.log("pruning ntests=" + this.marks[i].v.length);
         for (let j = 0; j < this.marks[i].v.length; j += 1) {
-          if (this.marks[i].i[j] !== 0 &&
-                            Math.log(this.marks[i].v[j]) < (
-                              this.threshold[this.marks[i].i[j]] + maskDecayLog * (nm - 1 - i)
-                            )) {
+          if (
+            this.marks[i].i[j] !== 0 &&
+            Math.log(this.marks[i].v[j]) < (
+              this.threshold[this.marks[i].i[j]] + maskDecayLog * (nm - 1 - i)
+            )
+          ) {
             this.marks[i].v[j] = Number.NEGATIVE_INFINITY
             this.marks[i].i[j] = Number.NEGATIVE_INFINITY
           }
@@ -366,10 +352,7 @@ class Codegen {
       this.buffer = this.buffer.slice(delta)
     }
 
-    if (tcodes.length > 0) {
-      // this will eventually trigger data events on the read interface
-      controller.enqueue({ tcodes, hcodes })
-    }
+    return { tcodes, hcodes }
   }
 }
 

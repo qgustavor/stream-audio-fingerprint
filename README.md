@@ -1,6 +1,6 @@
 # Audio landmark fingerprinting as a JavaScript module
 
-This module is [a transform stream](https://developer.mozilla.org/en-US/docs/Web/API/TransformStream) that converts a PCM audio signal into a series of audio fingerprints. It works with audio tracks as well as with unlimited audio streams, e.g. broadcast radio.
+This module is module that converts a PCM audio signal into a series of audio fingerprints. It works with audio tracks as well as with unlimited audio streams, e.g. broadcast radio.
 
 It's based on [lpolito/stream-audio-fingerprint](https://github.com/lpolito/stream-audio-fingerprint) which is based [adblockradio/stream-audio-fingerprint](https://github.com/adblockradio/stream-audio-fingerprint) which is one of the foundations of the [Adblock Radio project](https://github.com/adblockradio/adblockradio).
 
@@ -38,7 +38,6 @@ A demo usage is proposed below. It requires the executable [ffmpeg](https://ffmp
 
 ```javascript
 import Codegen from './codegen_landmark.ts'
-import { readableStreamFromReader } from 'https://deno.land/std@0.138.0/streams/conversion.ts'
 
 const decoder = Deno.run({
   cmd: [
@@ -56,10 +55,8 @@ const decoder = Deno.run({
 })
 
 const fingerprinter = new Codegen()
-const fingerprinterResult = readableStreamFromReader(decoder.stdout)
-  .pipeThrough(fingerprinter)
-
-for await (const data of fingerprinterResult) {
+for await (const audioData of decoder.stdout.readable) {
+  const data = fingerprinter.process(audioData)
   for (let i = 0; i < data.tcodes.length; i++) {
     console.log(`time=${data.tcodes[i]} fingerprint=${data.hcodes[i]}`)
   }
@@ -69,8 +66,8 @@ for await (const data of fingerprinterResult) {
 and then we pipe audio data, either a stream or a file
 
 ```sh
-curl http://radiofg.impek.com/fg | node codegen_demo.mjs
-node codegen_demo.mjs < awesome_music.mp3
+curl http://radiofg.impek.com/fg | deno run --allow-run=ffmpeg codegen_demo.mjs
+deno run --allow-run=ffmpeg codegen_demo.mjs < awesome_music.mp3
 ```
 
 ## License
