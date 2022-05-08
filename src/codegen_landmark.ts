@@ -38,6 +38,7 @@ interface CodegenOptions {
   pruningDt: number
   maskDf: number
   eww: number[][]
+  floatInput: boolean
 }
 
 interface CodegenUserOpts {
@@ -58,6 +59,7 @@ interface CodegenUserOpts {
   pruningDt?: number
   maskDf?: number
   eww?: number[][]
+  floatInput?: boolean
 }
 
 const buildOptions = (options: CodegenUserOpts): CodegenOptions => {
@@ -130,6 +132,8 @@ const buildOptions = (options: CodegenUserOpts): CodegenOptions => {
       ))
     ))
 
+  const floatInput = options.floatInput ?? false
+
   return {
     verbose,
     samplingRate,
@@ -147,7 +151,8 @@ const buildOptions = (options: CodegenUserOpts): CodegenOptions => {
     windowDt,
     pruningDt,
     maskDf,
-    eww
+    eww,
+    floatInput
   }
 }
 
@@ -174,7 +179,9 @@ class Codegen {
   constructor (options?: CodegenUserOpts) {
     this.options = buildOptions(options ?? {})
 
-    this.buffer = new Uint8Array(0)
+    this.buffer = this.options.floatInput
+      ? new Float32Array(0)
+      : new Uint8Array(0)
     this.bufferDelta = 0
 
     this.stepIndex = 0
@@ -199,7 +206,8 @@ class Codegen {
       windowDf,
       windowDt,
       pruningDt,
-      eww
+      eww,
+      floatInput
     } = this.options
 
     if (verbose) {
@@ -211,7 +219,9 @@ class Codegen {
     const tcodes: number[] = []
     const hcodes: number[] = []
 
-    const concatedBuffer = new Uint8Array(this.buffer.length + chunk.length)
+    const concatedBuffer = floatInput
+      ? new Float32Array(this.buffer.length + chunk.length)
+      : new Uint8Array(this.buffer.length + chunk.length)
     concatedBuffer.set(this.buffer, 0)
     concatedBuffer.set(chunk, this.buffer.length)
     this.buffer = concatedBuffer
@@ -219,13 +229,21 @@ class Codegen {
     const bufferView = new DataView(concatedBuffer.buffer)
 
     while ((this.stepIndex + nfft) * bps < this.buffer.length + this.bufferDelta) {
-      const data = new Array(nfft) // window data
+      let data // window data
       const image = new Array(nfft).fill(0)
 
       // fill the data, windowed (HWIN) and scaled
-      for (let i = 0, limit = nfft; i < limit; i++) {
-        const readInt = bufferView.getInt16((this.stepIndex + i) * bps - this.bufferDelta, true)
-        data[i] = (hwin[i] * readInt) / Math.pow(2, 8 * bps - 1)
+      if (floatInput) {
+        data = this.buffer.slice(
+          this.stepIndex * bps - this.bufferDelta,
+          (this.stepIndex + nfft) * bps - this.bufferDelta
+        )
+      } else {
+        data = new Array(nfft)
+        for (let i = 0, limit = nfft; i < limit; i++) {
+          const readInt = bufferView.getInt16((this.stepIndex + i) * bps - this.bufferDelta, true)
+          data[i] = (hwin[i] * readInt) / Math.pow(2, 8 * bps - 1)
+        }
       }
       this.stepIndex += step
 
