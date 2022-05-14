@@ -4,27 +4,9 @@ This module is module that converts a PCM audio signal into a series of audio fi
 
 It's based on [lpolito/stream-audio-fingerprint](https://github.com/lpolito/stream-audio-fingerprint) which is based [adblockradio/stream-audio-fingerprint](https://github.com/adblockradio/stream-audio-fingerprint) which is one of the foundations of the [Adblock Radio project](https://github.com/adblockradio/adblockradio).
 
-## Credits
+## Credits and description
 
-The [acoustic fingerprinting](https://en.wikipedia.org/wiki/Acoustic_fingerprint) technique used here is the landmark algorithm, as described in the [Shazam 2003 paper](http://www.ee.columbia.edu/~dpwe/papers/Wang03-shazam.pdf).
-The implementation in ```codegen_landmark.js``` has been inspired by the MATLAB routine of D. Ellis ["Robust Landmark-Based Audio Fingerprinting" (2009)](http://labrosa.ee.columbia.edu/matlab/fingerprint/). One significant difference with Ellis' implementation is that this module can handle unlimited audio streams, e.g. radio, and not only finished audio tracks.
-
-Note the existence of another good landmark fingerprinter in Python, [dejavu](https://github.com/worldveil/dejavu).
-
-## Description
-
-In a nutshell,
-- a spectrogram is computed from the audio signal
-- significant peaks are chosen in this time-frequency map. a latency of 250ms is used to determine if a peak is not followed by a bigger peak.
-- fingerprints are computed by linking peaks with `dt`, `f1` and `f2`, ready to be inserted in a database or to be compared with other fingerprints.
-
-![Spectrogram, peaks and pairs](out-fft.png)
-
-In the background, about 12s of musical content is represented as a spectrogram (top frequency is about 10kHz). The blue marks are the chosen spectrogram peaks. Grey lines are peaks pairs that each lead to a fingerprint.
-
-![Threshold and peaks](out-thr.png)
-
-Given the same audio, this figure shows the same peaks and the internal *forward* threshold that prevent peaks from being too close in time and frequency. The *backward* threshold selection is not represented here.
+Check [the original project](https://github.com/adblockradio/stream-audio-fingerprint#credits).
 
 ## Usage
 
@@ -69,6 +51,8 @@ and then we pipe audio data, either a stream or a file
 curl http://radiofg.impek.com/fg | deno run --allow-run=ffmpeg codegen_demo.mjs
 deno run --allow-run=ffmpeg codegen_demo.mjs < awesome_music.mp3
 ```
+
+Type definitions are not included because Deno can load TypeScript files directly and because [this TypeScript issue](https://github.com/microsoft/TypeScript/issues/37582).
 
 ## License
 
