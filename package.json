@@ -1,6 +1,6 @@
 {
   "name": "@qgustavor/stream-audio-fingerprint",
-  "version": "2.0.5",
+  "version": "2.0.6",
   "description": "Audio landmark fingerprinting as a JavaScript module",
   "type": "module",
   "main": "build/codegen_landmark.mjs",
