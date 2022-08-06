@@ -10,16 +10,10 @@ Check [the original project](https://github.com/adblockradio/stream-audio-finger
 
 ## Usage
 
-```sh
-npm install @qgustavor/stream-audio-fingerprint
-```
-
-The algorithm is in `src/codegen_landmark.ts`.
-
 A demo usage is proposed below. It requires the executable [ffmpeg](https://ffmpeg.org/download.html) and Deno to run.
 
 ```javascript
-import Codegen from './codegen_landmark.ts'
+import Codegen from 'https://unpkg.com/@qgustavor/stream-audio-fingerprint/src/codegen_landmark.ts'
 
 const decoder = Deno.run({
   cmd: [
@@ -52,7 +46,9 @@ curl http://radiofg.impek.com/fg | deno run --allow-run=ffmpeg codegen_demo.mjs
 deno run --allow-run=ffmpeg codegen_demo.mjs < awesome_music.mp3
 ```
 
-Type definitions are not included because Deno can load TypeScript files directly and because [this TypeScript issue](https://github.com/microsoft/TypeScript/issues/37582).
+This code also works in Node.js and is available in NPM via `npm install @qgustavor/stream-audio-fingerprint`.
+
+Type definitions are not generated automatically because [this TypeScript issue](https://github.com/microsoft/TypeScript/issues/37582). If you are using Deno you can load the source TypeScript files directly.
 
 ## License
 
