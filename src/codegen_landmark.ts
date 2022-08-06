@@ -18,9 +18,6 @@
 // The readable side outputs objects of the form
 // { tcodes: [time stamps], hcodes: [fingerprints] }
 
-// Typescript requires no extensions but Deno requires extensions
-// Solution: ignore the error
-// @ts-expect-error
 import FFT from './lib/fft.ts'
 
 interface CodegenOptions {

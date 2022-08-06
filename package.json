@@ -1,12 +1,12 @@
 {
   "name": "@qgustavor/stream-audio-fingerprint",
-  "version": "2.0.4",
+  "version": "2.0.2",
   "description": "Audio landmark fingerprinting as a JavaScript module",
   "type": "module",
-  "main": "build/codegen_landmark.js",
-  "types": "build/codegen_landmark.d.ts",
+  "main": "build/codegen_landmark.mjs",
+  "types": "types/codegen_landmark.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "esbuild src/codegen_landmark.ts --bundle --platform=neutral --outdir=build --out-extension:.js=.mjs",
     "test": "ts-standard"
   },
   "keywords": [
@@ -20,8 +20,8 @@
   ],
   "license": "MPL-2.0",
   "devDependencies": {
-    "ts-standard": "^11.0.0",
-    "typescript": "^4.7.4"
+    "esbuild": "^0.14.53",
+    "ts-standard": "^11.0.0"
   },
   "bugs": {
     "url": "https://github.com/qgustavor/stream-audio-fingerprint/issues"
