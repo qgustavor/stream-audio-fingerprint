@@ -18,6 +18,7 @@
 // The readable side outputs objects of the form
 // { tcodes: [time stamps], hcodes: [fingerprints] }
 
+// @ts-ignore
 import FFT from './lib/fft.ts'
 
 interface CodegenOptions {
