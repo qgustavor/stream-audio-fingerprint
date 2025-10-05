@@ -9,18 +9,18 @@
 // http://labrosa.ee.columbia.edu/matlab/fingerprint/
 // itself inspired by Wang 2003 paper
 
-// This module exports Codegen, an instance of stream.Transform
-// By default, the writable side must be fed with an input signal with the following properties:
+// This module exports Fingerprinter
+// By default, the process method must be fed with an input signal with the following properties:
 // - single channel
 // - 16bit PCM
 // - 22050 Hz sampling rate
 //
-// The readable side outputs objects of the form
+// It will output objects of the form
 // { tcodes: [time stamps], hcodes: [fingerprints] }
 
-import FFT from './lib/fft.ts'
+import FFT from './lib/fft.mts'
 
-interface CodegenOptions {
+interface FingerprinterOptions {
   verbose: boolean
   samplingRate: number
   bps: number
@@ -40,7 +40,7 @@ interface CodegenOptions {
   eww: number[][]
 }
 
-interface CodegenUserOpts {
+interface FingerprinterUserOpts {
   verbose?: boolean
   samplingRate?: number
   bps?: number
@@ -60,7 +60,7 @@ interface CodegenUserOpts {
   eww?: number[][]
 }
 
-const buildOptions = (options: CodegenUserOpts): CodegenOptions => {
+const buildOptions = (options: FingerprinterUserOpts): FingerprinterOptions => {
   const verbose = options.verbose ?? false
 
   // sampling rate in Hz. If you change this, you must adapt windowDt and pruningDt below to match your needs
@@ -157,13 +157,13 @@ interface Mark {
   v: number[]
 }
 
-export interface CodegenBuffer {
+export interface FingerprinterBuffer {
   tcodes: number[]
   hcodes: number[]
 }
 
-class Codegen {
-  options: CodegenOptions
+class Fingerprinter {
+  options: FingerprinterOptions
   buffer: Uint8Array
   bufferDelta: number
   stepIndex: number
@@ -171,7 +171,7 @@ class Codegen {
   threshold: number[]
   fft: FFT
 
-  constructor (options?: CodegenUserOpts) {
+  constructor (options?: FingerprinterUserOpts) {
     this.options = buildOptions(options ?? {})
 
     this.buffer = new Uint8Array(0)
@@ -184,7 +184,7 @@ class Codegen {
     this.fft = new FFT(this.options.nfft)
   }
 
-  process (chunk: Uint8Array): CodegenBuffer {
+  process (chunk: Uint8Array): FingerprinterBuffer {
     const {
       verbose,
       bps,
@@ -356,4 +356,4 @@ class Codegen {
   }
 }
 
-export default Codegen
+export default Fingerprinter

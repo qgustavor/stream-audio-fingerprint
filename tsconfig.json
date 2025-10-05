@@ -1,11 +1,15 @@
 {
 	"compilerOptions": {
 		"target": "es2020",
-		"module": "es2020",
+		"module": "NodeNext",
 		"declaration": true,
+    "declarationDir": "types",
 		"outDir": "build",
-		"strict": true
+		"strict": true,
+ 	  "moduleResolution": "nodenext",
+		"rewriteRelativeImportExtensions": true
 	},
+  "include": ["src/codegen_landmark.mts"],
 	"exclude": [
 		"node_modules",
 		"build"

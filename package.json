@@ -6,8 +6,9 @@
   "main": "build/codegen_landmark.mjs",
   "types": "types/codegen_landmark.d.ts",
   "scripts": {
-    "build": "esbuild src/codegen_landmark.ts --bundle --platform=neutral --outdir=build --out-extension:.js=.mjs",
-    "test": "ts-standard"
+    "build": "tsc",
+    "test": "eslint",
+    "fix": "eslint --fix"
   },
   "keywords": [
     "audio",
@@ -20,8 +21,10 @@
   ],
   "license": "MPL-2.0",
   "devDependencies": {
-    "esbuild": "^0.14.53",
-    "ts-standard": "^11.0.0"
+    "@eslint/markdown": "^7.3.0",
+    "eslint": "^9.37.0",
+    "neostandard": "^0.12.2",
+    "typescript": "^5.9.3"
   },
   "bugs": {
     "url": "https://github.com/qgustavor/stream-audio-fingerprint/issues"
