@@ -10,6 +10,10 @@
     "test": "eslint",
     "fix": "eslint --fix"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/qgustavor/stream-audio-fingerprint.git"
+  },
   "keywords": [
     "audio",
     "fingerprint",
