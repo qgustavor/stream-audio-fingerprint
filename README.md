@@ -47,6 +47,8 @@ curl http://radiofg.impek.com/fg | deno run --allow-run=ffmpeg codegen_demo.mjs
 deno run --allow-run=ffmpeg codegen_demo.mjs < awesome_music.mp3
 ```
 
+**Warning:** the path of the files changed on the version 2.1.0 which may affect Deno users that were importing `src/codegen_landmark.ts`, as this file is now `codegen_landmark.mts`.
+
 ## Fingerprinter options
 
 One improvement from the [Lucas Polito](https://github.com/lpolito) fork is the ability to customize the fingerprinter options. Those are all the options available:
